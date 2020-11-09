@@ -1,0 +1,103 @@
+{
+  "trigger": {
+    "schedule": {
+      "daily": {
+        "at": [
+          "00:00"
+        ]
+      }
+    }
+  },
+  "input": {
+    "search": {
+      "request": {
+        "search_type": "query_then_fetch",
+        "indices": [
+          "pcf-app-*"
+        ],
+        "rest_total_hits_as_int": true,
+        "body": {
+          "size": 1,
+          "query": {
+            "bool": {
+              "must": [
+                {
+                  "match": {
+                    "clgx_pcf_org.keyword": "Spatialus-prd"
+                  }
+                },
+                {
+                  "wildcard": {
+                    "clgx_pcf_app.keyword": "spatial-api*"
+                  }
+                },
+                {
+                  "match_phrase": {
+                    "message": "Total Kafka send failures"
+                  }
+                }
+              ],
+              "filter": {
+                "range": {
+                  "@timestamp": {
+                    "from": "{{ctx.trigger.scheduled_time}}||-24h",
+                    "to": "{{ctx.trigger.triggered_time}}"
+                  }
+                }
+              }
+            }
+          },
+          "sort": [
+            {
+              "@timestamp": {
+                "order": "desc"
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  "condition": {
+    "compare": {
+      "ctx.payload.hits.total": {
+        "gte": 1
+      }
+    }
+  },
+  "actions": {
+    "notify-slack": {
+      "webhook": {
+        "scheme": "https",
+        "host": "hooks.slack.com",
+        "port": 443,
+        "method": "post",
+        "path": "/services/T034AGHJ2/B016A0AB6A0/kKcZHciezkfLoVA5q2cT7qYp",
+        "params": {},
+        "headers": {
+          "Content-type": "application/json"
+        },
+        "body": "{\"text\": \"RiskMeter 2.0 Oracle Billing Kafka Send Failures. {{#ctx.payload.items}} \n\n{{message}}\n\n {{/ctx.payload.items}}\"}"
+      }
+    },
+    "smtp": {
+      "email": {
+        "account": "work",
+        "profile": "standard",
+        "to": [
+          "****@corelogic.com"
+        ],
+        "subject": "RiskMeter 2.0 Oracle Billing Kafka Send Failures.",
+        "body": {
+          "html": "RiskMeter 2.0 Oracle Billing Kafka Send Failures. {{#ctx.payload.items}} <br/><br/>{{message}}<br/><br/> {{/ctx.payload.items}}"
+        }
+      }
+    }
+  },
+  "transform": {
+    "script": {
+      "source": "def items = []; \r\n            for (def i=0 ; i < ctx.payload.hits.hits.length ; i++) { \r\n              def evt = ctx.payload.hits.hits[i]._source.syslog5424_msg;\r\n              int openIndex = evt.lastIndexOf('failures (');\r\n              int closeIndex = evt.lastIndexOf(')');\r\n              def m = evt.substring(openIndex+10, closeIndex);\r\n              items.add(\r\n                [\r\n                  'message': m\r\n                ]\r\n              )\r\n            }\r\n            ctx.payload.items = items;\r\n            return ctx.payload",
+      "lang": "painless"
+    }
+  }
+}

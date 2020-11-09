@@ -1,0 +1,109 @@
+{
+  "trigger": {
+    "schedule": {
+      "daily": {
+        "at": [
+          "08:00"
+        ]
+      }
+    }
+  },
+  "input": {
+    "search": {
+      "request": {
+        "search_type": "query_then_fetch",
+        "indices": [
+          "logs-data_portals_us*"
+        ],
+        "rest_total_hits_as_int": true,
+        "body": {
+          "size": 1,
+          "query": {
+            "bool": {
+              "must": [
+                {
+                  "match_phrase": {
+                    "message": "java.sql.SQLException: ORA"
+                  }
+                },
+                {
+                  "wildcard": {
+                    "clgx_pcf_org": "*prd"
+                  }
+                },
+                {
+                  "range": {
+                    "@timestamp": {
+                      "gte": "now-24h",
+                      "lte": "now"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "condition": {
+    "compare": {
+      "ctx.payload.hits.total": {
+        "gt": 10
+      }
+    }
+  },
+  "actions": {
+    "smtp": {
+      "email": {
+        "account": "work",
+        "profile": "standard",
+        "attachments": {
+          "SQLException_ORA_Exception.csv": {
+            "reporting": {
+              "url": "****",
+              "auth": {
+                "basic": {
+                  "username": "****",
+                  "password": "****"
+                }
+              }
+            }
+          }
+        },
+        "to": [
+          "madl-support.isc@corelogic.com"
+        ],
+        "subject": "ELK-dataportalsus-prd-SQLException_ORA_Exception",
+        "body": {
+          "html": "Search string: \"java.sql.SQLException: ORA\"<br/>Trigger time: {{ctx.trigger.triggered_time}}<br/>Number of errors encountered: {{ctx.payload.hits.total}}<br/><br/><a href=\"https://logging.corelogic.net/s/madl/app/kibana#/discover/b6f66a40-d068-11ea-bea2-e735a5e557a5?_g=(refreshInterval:(pause:!t,value:0),time:(from:'{{ctx.trigger.triggered_time}}||-24h',to:'{{ctx.trigger.triggered_time}}'))&_a=(columns:!(App_name,Instance_id,message,error.message,error.stack_trace),filters:!(),index:fc88c7e0-c566-11ea-bec3-257a021bb5f9,interval:auto,query:(language:kuery,query:'clgx_pcf_org+:+*prd+and+message:+%22java.sql.SQLException:+ORA%22'),sort:!(!('@timestamp',desc)))\">Link to search results</a>"
+        }
+      }
+    },
+    "pagerduty-low": {
+      "webhook": {
+        "scheme": "https",
+        "host": "events.pagerduty.com",
+        "port": 443,
+        "method": "post",
+        "path": "/v2/enqueue",
+        "params": {},
+        "headers": {
+          "Content-type": "application/json",
+          "x-routing-key": "{{ctx.metadata.routing_key}}"
+        },
+        "body": "{\"payload\": {\"summary\": \"{{ ctx.metadata.critical.summary }}\",\"source\": \"{{ ctx.metadata.critical.source }}\", \"severity\": \"warning\", \"custom_details\": {\"Number of events encountered\": \"{{ctx.payload.hits.total}}\",\"Trigger Time\":\"{{ctx.trigger.triggered_time}}\", \"Search String\": \"java.sql.SQLException: ORA\", \"Search Link\": \"https://logging.corelogic.net/s/madl/app/kibana#/discover/b6f66a40-d068-11ea-bea2-e735a5e557a5?_g=(refreshInterval:(pause:!t,value:0),time:(from:'{{ctx.trigger.triggered_time}}||-24h',to:'{{ctx.trigger.triggered_time}}'))&_a=(columns:!(App_name,Instance_id,message,error.message,error.stack_trace),filters:!(),index:fc88c7e0-c566-11ea-bec3-257a021bb5f9,interval:auto,query:(language:kuery,query:'clgx_pcf_org+:+*prd+and+message:+%22java.sql.SQLException:+ORA%22'),sort:!(!('@timestamp',desc)))\"}},   \"event_action\": \"trigger\"}"
+      }
+    }
+  },
+  "metadata": {
+    "event_action": "trigger",
+    "critical": {
+      "summary": "Dataportal SQLException_ORA_Exception",
+      "dedup_key": "dp_SQLException_ORA_Exception",
+      "source": "madl-*"
+    },
+    "critical_threshold": 0.8,
+    "routing_key": "****"
+  }
+}

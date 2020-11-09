@@ -1,0 +1,90 @@
+{
+  "trigger": {
+    "schedule": {
+      "daily": {
+        "at": [
+          "13:00"
+        ]
+      }
+    }
+  },
+  "input": {
+    "search": {
+      "request": {
+        "search_type": "query_then_fetch",
+        "indices": [
+          "logs-flood_us*"
+        ],
+        "rest_total_hits_as_int": true,
+        "body": {
+          "size": 0,
+          "_source": "message",
+          "query": {
+            "bool": {
+              "must": [
+                {
+                  "wildcard": {
+                    "fcsoap_stats.res": "E_*"
+                  }
+                },
+                {
+                  "wildcard": {
+                    "cloudfoundry.org.name": "*prd"
+                  }
+                },
+                {
+                  "range": {
+                    "@timestamp": {
+                      "gte": "now-24h"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "aggs": {
+            "exception": {
+              "terms": {
+                "field": "fcsoap_stats.res.keyword",
+                "size": 50
+              },
+              "aggs": {
+                "users": {
+                  "terms": {
+                    "field": "fcsoap_stats.user.keyword",
+                    "order": {
+                      "_count": "desc"
+                    },
+                    "size": 50
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "condition": {
+    "compare": {
+      "ctx.payload.hits.total": {
+        "gte": 0
+      }
+    }
+  },
+  "actions": {
+    "smtp": {
+      "email": {
+        "account": "work",
+        "profile": "standard",
+        "to": [
+          "****@corelogic.com"
+        ],
+        "subject": "GCP Prod SOAP Top Errors By User - Last 24 hours",
+        "body": {
+          "html": "There are a total of {{ctx.payload.hits.total}} errors.<br/><table border='1' border-collapse='collapse' padding='10px'><tr><th>Exception</th><th>User</th><th>Count</th></tr>{{#ctx.payload.aggregations.exception.buckets}}<tr><td>{{key}}</td><td></td><td>{{doc_count}}</td></tr>{{#users.buckets}}<tr><td></td><td>{{key}}</td><td>{{doc_count}}</td></tr>{{/users.buckets}}{{/ctx.payload.aggregations.exception.buckets}}</table><br/> <br/>"
+        }
+      }
+    }
+  }
+}

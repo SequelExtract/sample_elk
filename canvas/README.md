@@ -5,3 +5,5 @@ Example Contains
 Log analysis - shows number of logs
 Total erros - and logs per minute
 
+To use Workpad
+Drag & drop .json into Canvas

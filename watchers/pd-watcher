@@ -100,7 +100,7 @@
     "event_action": "trigger",
     "critical": {
       "summary": "Dataportal SQLException_ORA_Exception",
-      "dedup_key": "dp_SQLException_ORA_Exception",
+      "dedup_key": "****",
       "source": "madl-*"
     },
     "critical_threshold": 0.8,

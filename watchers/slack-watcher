@@ -72,7 +72,7 @@
         "host": "hooks.slack.com",
         "port": 443,
         "method": "post",
-        "path": "/services/T034AGHJ2/B016A0AB6A0/kKcZHciezkfLoVA5q2cT7qYp",
+        "path": "/services/****",
         "params": {},
         "headers": {
           "Content-type": "application/json"
